@@ -13,3 +13,8 @@ Arduino and embedded systems coursework - assessments and project.
 - 07-button-serial-plotter - Visualise button state in Serial Plotter
 - 08-potentiometer-serial-plotter - Visualise potentiometer value in Serial Plotter
 - 09-potentiometer-led - Control LED brightness with potentiometer
+- 10-analog-pin-digital-blink - Use analog pin A5 as digital output to blink LED
+- 11-serial-blink-control - Control LED blink speed via Serial input
+- 12-millis-duration - Measure elapsed time using millis()
+- 13-millis-non-blocking-serial - Non-blocking Serial print using millis()
+- 14-millis-two-led-blink - Blink two LEDs independently using millis()
