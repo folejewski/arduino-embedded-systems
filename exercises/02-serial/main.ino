@@ -11,5 +11,5 @@ void setup()
 void loop()
 {
   Serial.println("In the loop");
-  delat(500);
+  delay(500);
 }
