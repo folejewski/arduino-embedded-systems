@@ -4,13 +4,25 @@
 // Step 2: Blink warning LED at a rate proportional to measured distance
 // Step 3: Lock app when obstacle is too close, blink both LEDs at 300ms when locked
 // Step 4: Debounce button by checking state in loop, unlock app on button release
+// Step 5: Setup LCD screen and print initialization message
+
+#include <LiquidCrystal.h>
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
 const byte WARNING_LED_PIN = 11;
 const byte ERROR_LED_PIN = 12;
 const byte BUTTON_PIN = 2;
+const byte LCD_RS_PIN = A5;
+const byte LCD_E_PIN = A4;
+const byte LCD_D4_PIN = 6;
+const byte LCD_D5_PIN = 7;
+const byte LCD_D6_PIN = 8;
+const byte LCD_D7_PIN = 9;
+
 const double LOCK_DISTANCE = 10.0;
+
+LiquidCrystal lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6_PIN, LCD_D7_PIN);
 
 // ultrasonic
 unsigned long lastTimeUltrasonicTrigger = millis();
@@ -120,6 +132,7 @@ void unlock()
 void setup() 
 {
   Serial.begin(115200);
+  lcd.begin(16,2);
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(WARNING_LED_PIN, OUTPUT);
@@ -129,8 +142,12 @@ void setup()
   buttonState = digitalRead(BUTTON_PIN);
 
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN), echoPinInterrupt, CHANGE);
+  
+  lcd.print("Initializing...");
+  delay(1000);
+  lcd.clear();
 }
-
+  
 void loop() 
 {
   unsigned long timeNow = millis();
