@@ -6,8 +6,10 @@
 // Step 4: Debounce button by checking state in loop, unlock app on button release
 // Step 5: Setup LCD screen and print initialization message
 // Step 6: Print distance and warning on LCD, show error message when locked
+// Step 7: Setup IR remote receiver and map button codes
 
 #include <LiquidCrystal.h>
+#include <IRremote.h>
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
@@ -20,6 +22,14 @@ const byte LCD_D4_PIN = 6;
 const byte LCD_D5_PIN = 7;
 const byte LCD_D6_PIN = 8;
 const byte LCD_D7_PIN = 9;
+const byte IR_RECEIVE_PIN = 5;
+
+// IR button mapping
+const byte IR_BUTTON_PLAY = 64;
+const byte IR_BUTTON_OFF = 69;
+const byte IR_BUTTON_EQ = 25;
+const byte IR_BUTTON_UP = 9;
+const byte IR_BUTTON_DOWN = 7;
 
 const double LOCK_DISTANCE = 10.0;
 const double WARNING_DISTANCE = 50.0;
@@ -108,13 +118,13 @@ void setWarningLEDBlinkRateFromDistance(double distance)
 {
   // 0 .. 400 cm -> 0 .. 1600 ms
   warningLEDDelay = distance * 4;
-  Serial.println(warningLEDDelay);
+  //Serial.println(warningLEDDelay);
 }
 
 void lock()
 {
   if (!isLocked) {
-    Serial.println("Locking");
+    //Serial.println("Locking");
     isLocked = true;
     warningLEDState = LOW;
     errorLEDState = LOW;
@@ -124,7 +134,7 @@ void lock()
 void unlock()
 {
   if (isLocked) {
-    Serial.println("Unlocking");
+    //Serial.println("Unlocking");
     isLocked = false;
     errorLEDState = LOW;
     digitalWrite(ERROR_LED_PIN, errorLEDState);
@@ -133,24 +143,28 @@ void unlock()
 
 void printDistanceOnLCD(double distance)
 {
-  if (isLocked) {
+  if (isLocked) 
+  {
     lcd.setCursor(0, 0);
-    lcd.print("!!! Obstacle !!!     ");
+    lcd.print("!!! Obstacle !!!");
     lcd.setCursor(0, 1);
-    lcd.print("Press to unlock.   ");
+    lcd.print("Press to unlock.");
   }
-  else {
+  else 
+  {
     lcd.setCursor(0, 0);
     lcd.print("Dist: ");
     lcd.print(distance);
-    lcd.print(" cm     ");
+    lcd.print(" cm");
 
     lcd.setCursor(0, 1);
-    if (distance > WARNING_DISTANCE) {
-      lcd.print("No obstacle.         ");
+    if (distance > WARNING_DISTANCE) 
+    {
+      lcd.print("No obstacle.");
     }
-    else {
-      lcd.print("!! Warning !!        ");
+    else 
+    {
+      lcd.print("!! Warning !!");
     }
   }
 }
@@ -159,6 +173,7 @@ void setup()
 {
   Serial.begin(115200);
   lcd.begin(16,2);
+  IrReceiver.begin(IR_RECEIVE_PIN);
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(WARNING_LED_PIN, OUTPUT);
@@ -199,12 +214,20 @@ void loop()
       }
     }
   }
-  else {
+  else 
+  {
     if (timeNow - lastTimeWarningLEDBlinked > warningLEDDelay)
     {
       lastTimeWarningLEDBlinked += warningLEDDelay;
       toggleWarningLED();
     }
+  }
+  
+  if (IrReceiver.decode()) 
+  {
+    IrReceiver.resume();
+    long command = IrReceiver.decodedIRData.command;
+    Serial.println(command);
   }
   
   if (timeNow - lastTimeUltrasonicTrigger > ultrasonicTriggerDelay) 
@@ -219,9 +242,10 @@ void loop()
     double distance = getUltrasonicDistance();
     setWarningLEDBlinkRateFromDistance(distance);
     printDistanceOnLCD(distance);
-    if (distance < LOCK_DISTANCE) {
+    if (distance < LOCK_DISTANCE) 
+    {
       lock();
     }
-    Serial.println(distance);
+    //Serial.println(distance);
   }
 }
