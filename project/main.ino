@@ -5,6 +5,7 @@
 // Step 3: Lock app when obstacle is too close, blink both LEDs at 300ms when locked
 // Step 4: Debounce button by checking state in loop, unlock app on button release
 // Step 5: Setup LCD screen and print initialization message
+// Step 6: Print distance and warning on LCD, show error message when locked
 
 #include <LiquidCrystal.h>
 
@@ -21,6 +22,7 @@ const byte LCD_D6_PIN = 8;
 const byte LCD_D7_PIN = 9;
 
 const double LOCK_DISTANCE = 10.0;
+const double WARNING_DISTANCE = 50.0;
 
 LiquidCrystal lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6_PIN, LCD_D7_PIN);
 
@@ -129,6 +131,30 @@ void unlock()
   }
 }
 
+void printDistanceOnLCD(double distance)
+{
+  if (isLocked) {
+    lcd.setCursor(0, 0);
+    lcd.print("!!! Obstacle !!!     ");
+    lcd.setCursor(0, 1);
+    lcd.print("Press to unlock.   ");
+  }
+  else {
+    lcd.setCursor(0, 0);
+    lcd.print("Dist: ");
+    lcd.print(distance);
+    lcd.print(" cm     ");
+
+    lcd.setCursor(0, 1);
+    if (distance > WARNING_DISTANCE) {
+      lcd.print("No obstacle.         ");
+    }
+    else {
+      lcd.print("!! Warning !!        ");
+    }
+  }
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -192,6 +218,7 @@ void loop()
     newDistanceAvailable = false;
     double distance = getUltrasonicDistance();
     setWarningLEDBlinkRateFromDistance(distance);
+    printDistanceOnLCD(distance);
     if (distance < LOCK_DISTANCE) {
       lock();
     }
