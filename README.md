@@ -1,6 +1,7 @@
 # Arduino Embedded Systems
 
 Arduino and embedded systems coursework - assessments and project.
+Each folder contains `main.ino` (code) and `circuit.png` (wiring diagram).
 
 ## Exercises
 
@@ -30,3 +31,18 @@ Arduino and embedded systems coursework - assessments and project.
 - **19-interrupt-button-led** - Toggle LED using hardware interrupt
 - **20-interrupt-debounce-led** - Toggle LED using hardware interrupt with debouncing
 - **21-interrupt-button-counter** - Count button presses using hardware interrupt
+
+## Projects
+
+- **final-project** - Obstacle detection circuit using ultrasonic sensor, LCD screen, IR remote, photoresistor, and LEDs. Locks when obstacle is too close, supports distance unit toggle (cm/in) saved to EEPROM, and displays luminosity
+  - **Step 1** - Ultrasonic distance sensing with interrupts
+  - **Step 2** - Warning LED blink rate proportional to distance
+  - **Step 3** - Auto-lock when obstacle closer than 10cm
+  - **Step 4** - Button debounce and unlock on release
+  - **Step 5** - LCD initialization
+  - **Step 6** - Distance and warning messages on LCD
+  - **Step 7** - IR remote receiver setup
+  - **Step 8** - IR remote command handling
+  - **Step 9** - Distance unit toggle (cm/in) saved to EEPROM
+  - **Step 10** - Multiple LCD screen modes with UP/DOWN navigation
+  - **Step 11** - Photoresistor luminosity with light LED and LCD screen

@@ -10,6 +10,7 @@
 // Step 8: Handle IR remote commands, unlock app with PLAY button
 // Step 9: Toggle distance unit with EQ button and save to EEPROM
 // Step 10: Add LCD screen modes, toggle with UP/DOWN, reset settings with OFF
+// Step 11: Read luminosity, set light LED brightness, show on LCD third screen
 
 #include <LiquidCrystal.h>
 #include <IRremote.h>
@@ -17,6 +18,7 @@
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
+const byte LIGHT_LED_PIN = 10;
 const byte WARNING_LED_PIN = 11;
 const byte ERROR_LED_PIN = 12;
 const byte BUTTON_PIN = 2;
@@ -27,6 +29,7 @@ const byte LCD_D5_PIN = 7;
 const byte LCD_D6_PIN = 8;
 const byte LCD_D7_PIN = 9;
 const byte IR_RECEIVE_PIN = 5;
+const byte PHOTORESISTOR_PIN = A0;
 
 // IR button mapping
 const byte IR_BUTTON_PLAY = 5;
@@ -45,6 +48,7 @@ const byte EEPROM_ADDRESS_DISTANCE_UNIT = 50;
 
 const byte LCD_MODE_DISTANCE = 0;
 const byte LCD_MODE_SETTINGS = 1;
+const byte LCD_MODE_LUMINOSITY = 2;
 
 LiquidCrystal lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6_PIN, LCD_D7_PIN);
 
@@ -67,6 +71,10 @@ byte warningLEDState = LOW;
 unsigned long lastTimeErrorLEDBlinked = millis();
 unsigned long errorLEDDelay = 300;
 byte errorLEDState = LOW;
+
+// photoresistor
+unsigned long lastTimeReadLuminosity = millis();
+unsigned long readLuminosityDelay = 100;
 
 // push button
 unsigned long lastTimeButtonChanged = millis();
@@ -177,7 +185,8 @@ void printDistanceOnLCD(double distance)
       lcd.print(distance * CM_TO_INCHES);
       lcd.print(" in       ");
     }
-    else {
+    else
+    {
       lcd.print(distance);
       lcd.print(" cm     ");
     }
@@ -207,18 +216,23 @@ void toggleDistanceUnit()
   EEPROM.write(EEPROM_ADDRESS_DISTANCE_UNIT, distanceUnit);
 }
 
-void toggleLCDScreen()
+void toggleLCDScreen(bool next)
 {
   switch (lcdMode)
   {
     case LCD_MODE_DISTANCE:
     {
-      lcdMode = LCD_MODE_SETTINGS;
+      lcdMode = (next) ? LCD_MODE_SETTINGS : LCD_MODE_LUMINOSITY;
       break;
     }
     case LCD_MODE_SETTINGS:
     {
-      lcdMode = LCD_MODE_DISTANCE;
+      lcdMode = (next) ? LCD_MODE_LUMINOSITY : LCD_MODE_DISTANCE;
+      break;
+    }
+    case LCD_MODE_LUMINOSITY:
+    {
+      lcdMode = (next) ? LCD_MODE_DISTANCE : LCD_MODE_SETTINGS;
       break;
     }
     default:
@@ -273,18 +287,35 @@ void handleIRCommand(long command)
     }
     case IR_BUTTON_UP:
     {
-      toggleLCDScreen();
+      toggleLCDScreen(true);
       break;
     }
     case IR_BUTTON_DOWN:
     {
-      toggleLCDScreen();
+      toggleLCDScreen(false);
       break;
     }
     default:
     {
       // do nothing
     }
+  }
+}
+
+void setLightLEDFromLuminosity(int luminosity)
+{
+  byte brightness = 255 - luminosity / 4;
+  analogWrite(LIGHT_LED_PIN, brightness);
+}
+
+void printLuminosityOnLCD(int luminosity)
+{
+  if (!isLocked && lcdMode == LCD_MODE_LUMINOSITY)
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("Luminosity: ");
+    lcd.print(luminosity);
+    lcd.print("    ");
   }
 }
 
@@ -297,6 +328,7 @@ void setup()
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(WARNING_LED_PIN, OUTPUT);
   pinMode(ERROR_LED_PIN, OUTPUT);
+  pinMode(LIGHT_LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
 
   buttonState = digitalRead(BUTTON_PIN);
@@ -318,7 +350,8 @@ void loop()
 {
   unsigned long timeNow = millis();
   
-  if (isLocked) {
+  if (isLocked)
+  {
     if (timeNow - lastTimeErrorLEDBlinked > errorLEDDelay)
     {
       lastTimeErrorLEDBlinked += errorLEDDelay;
@@ -367,7 +400,7 @@ void loop()
     newDistanceAvailable = false;
     double distance = getUltrasonicDistance();
     setWarningLEDBlinkRateFromDistance(distance);
-    if (lcdMode == LCD_MODE_DISTANCE)
+    if (lcdMode == LCD_MODE_DISTANCE || isLocked)
     {
       printDistanceOnLCD(distance);
     }
@@ -376,5 +409,13 @@ void loop()
       lock();
     }
     //Serial.println(distance);
+  }
+  
+  if (timeNow - lastTimeReadLuminosity > readLuminosityDelay)
+  {
+    lastTimeReadLuminosity += readLuminosityDelay;
+    int luminosity = analogRead(PHOTORESISTOR_PIN);
+    setLightLEDFromLuminosity(luminosity);
+    printLuminosityOnLCD(luminosity);
   }
 }
