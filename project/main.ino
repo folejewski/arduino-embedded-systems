@@ -1,10 +1,13 @@
 // C++ code
 //
 // Step 1: Read distance from ultrasonic sensor using interrupts and print to serial
+// Step 2: Blink warning LED at a rate proportional to measured distance
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
+const byte WARNING_LED_PIN = 11;
 
+// ultrasonic
 unsigned long lastTimeUltrasonicTrigger = millis();
 unsigned long ultrasonicTriggerDelay = 60;
 
@@ -13,6 +16,11 @@ volatile unsigned long pulseInTimeEnd;
 volatile bool newDistanceAvailable = false;
 
 double previousDistance = 400.0;
+
+// warning LED
+unsigned long lastTimeWarningLEDBlinked = millis();
+unsigned long warningLEDDelay = 500;
+byte warningLEDState = LOW;
 
 void triggerUltrasonicSensor()
 {
@@ -53,11 +61,25 @@ void echoPinInterrupt()
   }
 }
 
+void toggleWarningLED()
+{
+  warningLEDState = (warningLEDState == HIGH) ? LOW : HIGH;
+  digitalWrite(WARNING_LED_PIN, warningLEDState);
+}
+
+void setWarningLEDBlinkRateFromDistance(double distance)
+{
+  // 0 .. 400 cm -> 0 .. 1600 ms
+  warningLEDDelay = distance * 4;
+  Serial.println(warningLEDDelay);
+}
+
 void setup() 
 {
   Serial.begin(115200);
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(WARNING_LED_PIN, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN), echoPinInterrupt, CHANGE);
 }
@@ -71,11 +93,18 @@ void loop()
     lastTimeUltrasonicTrigger += ultrasonicTriggerDelay;
     triggerUltrasonicSensor();
   }
+  
+  if (timeNow - lastTimeWarningLEDBlinked > warningLEDDelay) 
+  {
+    lastTimeWarningLEDBlinked += warningLEDDelay;
+    toggleWarningLED();
+  }
 
   if (newDistanceAvailable) 
   {
     newDistanceAvailable = false;
     double distance = getUltrasonicDistance();
+    setWarningLEDBlinkRateFromDistance(distance);
     Serial.println(distance);
   }
 }
