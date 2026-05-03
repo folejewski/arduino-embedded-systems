@@ -7,6 +7,7 @@
 // Step 5: Setup LCD screen and print initialization message
 // Step 6: Print distance and warning on LCD, show error message when locked
 // Step 7: Setup IR remote receiver and map button codes
+// Step 8: Handle IR remote commands, unlock app with PLAY button
 
 #include <LiquidCrystal.h>
 #include <IRremote.h>
@@ -25,11 +26,11 @@ const byte LCD_D7_PIN = 9;
 const byte IR_RECEIVE_PIN = 5;
 
 // IR button mapping
-const byte IR_BUTTON_PLAY = 64;
-const byte IR_BUTTON_OFF = 69;
-const byte IR_BUTTON_EQ = 25;
-const byte IR_BUTTON_UP = 9;
-const byte IR_BUTTON_DOWN = 7;
+const byte IR_BUTTON_PLAY = 5;
+const byte IR_BUTTON_OFF = 0;
+const byte IR_BUTTON_EQ = 13;
+const byte IR_BUTTON_UP = 10;
+const byte IR_BUTTON_DOWN = 8;
 
 const double LOCK_DISTANCE = 10.0;
 const double WARNING_DISTANCE = 50.0;
@@ -169,6 +170,42 @@ void printDistanceOnLCD(double distance)
   }
 }
 
+void handleIRCommand(long command)
+{
+  switch (command)
+  {
+    case IR_BUTTON_PLAY:
+    {
+      unlock();
+      break;
+    }
+    case IR_BUTTON_OFF:
+    {
+      // next step
+      break;
+    }
+    case IR_BUTTON_EQ:
+    {
+      // next step
+      break;
+    }
+    case IR_BUTTON_UP:
+    {
+      // next step
+      break;
+    }
+    case IR_BUTTON_DOWN:
+    {
+      // next step
+      break;
+    }
+    default:
+    {
+      // do nothing
+    }
+  }
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -227,7 +264,8 @@ void loop()
   {
     IrReceiver.resume();
     long command = IrReceiver.decodedIRData.command;
-    Serial.println(command);
+    handleIRCommand(command);
+    //Serial.println(command);
   }
   
   if (timeNow - lastTimeUltrasonicTrigger > ultrasonicTriggerDelay) 
