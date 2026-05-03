@@ -3,11 +3,13 @@
 // Step 1: Read distance from ultrasonic sensor using interrupts and print to serial
 // Step 2: Blink warning LED at a rate proportional to measured distance
 // Step 3: Lock app when obstacle is too close, blink both LEDs at 300ms when locked
+// Step 4: Debounce button by checking state in loop, unlock app on button release
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
 const byte WARNING_LED_PIN = 11;
 const byte ERROR_LED_PIN = 12;
+const byte BUTTON_PIN = 2;
 const double LOCK_DISTANCE = 10.0;
 
 // ultrasonic
@@ -29,6 +31,11 @@ byte warningLEDState = LOW;
 unsigned long lastTimeErrorLEDBlinked = millis();
 unsigned long errorLEDDelay = 300;
 byte errorLEDState = LOW;
+
+// push button
+unsigned long lastTimeButtonChanged = millis();
+unsigned long buttonDebounceDelay = 50;
+byte buttonState;
 
 bool isLocked = false;
 
@@ -93,9 +100,20 @@ void setWarningLEDBlinkRateFromDistance(double distance)
 void lock()
 {
   if (!isLocked) {
+    Serial.println("Locking");
     isLocked = true;
     warningLEDState = LOW;
     errorLEDState = LOW;
+  }
+}
+
+void unlock()
+{
+  if (isLocked) {
+    Serial.println("Unlocking");
+    isLocked = false;
+    errorLEDState = LOW;
+    digitalWrite(ERROR_LED_PIN, errorLEDState);
   }
 }
 
@@ -106,6 +124,9 @@ void setup()
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(WARNING_LED_PIN, OUTPUT);
   pinMode(ERROR_LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT);
+
+  buttonState = digitalRead(BUTTON_PIN);
 
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN), echoPinInterrupt, CHANGE);
 }
@@ -120,6 +141,19 @@ void loop()
       lastTimeErrorLEDBlinked += errorLEDDelay;
       toggleErrorLED();
       toggleWarningLED();
+    }
+    if (timeNow - lastTimeButtonChanged > buttonDebounceDelay) 
+    {
+      byte newButtonState = digitalRead(BUTTON_PIN);
+      if (newButtonState != buttonState) 
+      {
+        lastTimeButtonChanged = timeNow;
+        buttonState = newButtonState;
+        if (buttonState == LOW) 
+        { // released
+          unlock();
+        }
+      }
     }
   }
   else {
