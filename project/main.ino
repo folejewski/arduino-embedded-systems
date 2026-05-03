@@ -8,9 +8,11 @@
 // Step 6: Print distance and warning on LCD, show error message when locked
 // Step 7: Setup IR remote receiver and map button codes
 // Step 8: Handle IR remote commands, unlock app with PLAY button
+// Step 9: Toggle distance unit with EQ button and save to EEPROM
 
 #include <LiquidCrystal.h>
 #include <IRremote.h>
+#include <EEPROM.h>
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
@@ -34,6 +36,11 @@ const byte IR_BUTTON_DOWN = 8;
 
 const double LOCK_DISTANCE = 10.0;
 const double WARNING_DISTANCE = 50.0;
+
+const byte DISTANCE_UNIT_CM = 0;
+const byte DISTANCE_UNIT_IN = 1;
+const float CM_TO_INCHES = 0.393701;
+const byte EEPROM_ADDRESS_DISTANCE_UNIT = 50;
 
 LiquidCrystal lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6_PIN, LCD_D7_PIN);
 
@@ -63,6 +70,8 @@ unsigned long buttonDebounceDelay = 50;
 byte buttonState;
 
 bool isLocked = false;
+
+byte distanceUnit = DISTANCE_UNIT_CM;
 
 void triggerUltrasonicSensor()
 {
@@ -147,27 +156,47 @@ void printDistanceOnLCD(double distance)
   if (isLocked) 
   {
     lcd.setCursor(0, 0);
-    lcd.print("!!! Obstacle !!!");
+    lcd.print("!!! Obstacle !!!     ");
     lcd.setCursor(0, 1);
-    lcd.print("Press to unlock.");
+    lcd.print("Press to unlock.     ");
   }
-  else 
+  else
   {
     lcd.setCursor(0, 0);
     lcd.print("Dist: ");
-    lcd.print(distance);
-    lcd.print(" cm");
+    if (distanceUnit == DISTANCE_UNIT_IN) 
+    {
+      lcd.print(distance * CM_TO_INCHES);
+      lcd.print(" in       ");
+    }
+    else {
+      lcd.print(distance);
+      lcd.print(" cm     ");
+    }
 
     lcd.setCursor(0, 1);
     if (distance > WARNING_DISTANCE) 
     {
-      lcd.print("No obstacle.");
+      lcd.print("No obstacle.       ");
     }
     else 
     {
-      lcd.print("!! Warning !!");
+      lcd.print("!! Warning !!       ");
     }
   }
+}
+
+void toggleDistanceUnit()
+{
+  if (distanceUnit == DISTANCE_UNIT_CM)
+  {
+    distanceUnit = DISTANCE_UNIT_IN;
+  }
+  else
+  {
+    distanceUnit = DISTANCE_UNIT_CM;
+  }
+  EEPROM.write(EEPROM_ADDRESS_DISTANCE_UNIT, distanceUnit);
 }
 
 void handleIRCommand(long command)
@@ -186,7 +215,7 @@ void handleIRCommand(long command)
     }
     case IR_BUTTON_EQ:
     {
-      // next step
+      toggleDistanceUnit();
       break;
     }
     case IR_BUTTON_UP:
@@ -220,6 +249,12 @@ void setup()
   buttonState = digitalRead(BUTTON_PIN);
 
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN), echoPinInterrupt, CHANGE);
+  
+  distanceUnit = EEPROM.read(EEPROM_ADDRESS_DISTANCE_UNIT);
+  if (distanceUnit == 255)
+  {
+    distanceUnit = DISTANCE_UNIT_CM;
+  }
   
   lcd.print("Initializing...");
   delay(1000);
