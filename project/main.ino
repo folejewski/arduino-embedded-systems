@@ -9,6 +9,7 @@
 // Step 7: Setup IR remote receiver and map button codes
 // Step 8: Handle IR remote commands, unlock app with PLAY button
 // Step 9: Toggle distance unit with EQ button and save to EEPROM
+// Step 10: Add LCD screen modes, toggle with UP/DOWN, reset settings with OFF
 
 #include <LiquidCrystal.h>
 #include <IRremote.h>
@@ -42,6 +43,9 @@ const byte DISTANCE_UNIT_IN = 1;
 const float CM_TO_INCHES = 0.393701;
 const byte EEPROM_ADDRESS_DISTANCE_UNIT = 50;
 
+const byte LCD_MODE_DISTANCE = 0;
+const byte LCD_MODE_SETTINGS = 1;
+
 LiquidCrystal lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6_PIN, LCD_D7_PIN);
 
 // ultrasonic
@@ -72,6 +76,7 @@ byte buttonState;
 bool isLocked = false;
 
 byte distanceUnit = DISTANCE_UNIT_CM;
+byte lcdMode = LCD_MODE_DISTANCE;
 
 void triggerUltrasonicSensor()
 {
@@ -133,7 +138,8 @@ void setWarningLEDBlinkRateFromDistance(double distance)
 
 void lock()
 {
-  if (!isLocked) {
+  if (!isLocked) 
+  {
     //Serial.println("Locking");
     isLocked = true;
     warningLEDState = LOW;
@@ -143,11 +149,13 @@ void lock()
 
 void unlock()
 {
-  if (isLocked) {
+  if (isLocked) 
+  {
     //Serial.println("Unlocking");
     isLocked = false;
     errorLEDState = LOW;
     digitalWrite(ERROR_LED_PIN, errorLEDState);
+    lcd.clear();
   }
 }
 
@@ -199,6 +207,51 @@ void toggleDistanceUnit()
   EEPROM.write(EEPROM_ADDRESS_DISTANCE_UNIT, distanceUnit);
 }
 
+void toggleLCDScreen()
+{
+  switch (lcdMode)
+  {
+    case LCD_MODE_DISTANCE:
+    {
+      lcdMode = LCD_MODE_SETTINGS;
+      break;
+    }
+    case LCD_MODE_SETTINGS:
+    {
+      lcdMode = LCD_MODE_DISTANCE;
+      break;
+    }
+    default:
+    {
+      lcdMode = LCD_MODE_DISTANCE;
+    }
+  }
+
+  lcd.clear();
+
+  if (lcdMode == LCD_MODE_SETTINGS)
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("Press on OFF to");
+    lcd.setCursor(0, 1);
+    lcd.print("reset settings.");
+  }
+}
+
+void resetSettingsToDefault()
+{
+  if (lcdMode == LCD_MODE_SETTINGS)
+  {
+    distanceUnit = DISTANCE_UNIT_CM;
+    EEPROM.write(EEPROM_ADDRESS_DISTANCE_UNIT, distanceUnit);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Settings have");
+    lcd.setCursor(0, 1);
+    lcd.print("been reset.");
+  }
+}
+
 void handleIRCommand(long command)
 {
   switch (command)
@@ -210,7 +263,7 @@ void handleIRCommand(long command)
     }
     case IR_BUTTON_OFF:
     {
-      // next step
+      resetSettingsToDefault();
       break;
     }
     case IR_BUTTON_EQ:
@@ -220,12 +273,12 @@ void handleIRCommand(long command)
     }
     case IR_BUTTON_UP:
     {
-      // next step
+      toggleLCDScreen();
       break;
     }
     case IR_BUTTON_DOWN:
     {
-      // next step
+      toggleLCDScreen();
       break;
     }
     default:
@@ -314,7 +367,10 @@ void loop()
     newDistanceAvailable = false;
     double distance = getUltrasonicDistance();
     setWarningLEDBlinkRateFromDistance(distance);
-    printDistanceOnLCD(distance);
+    if (lcdMode == LCD_MODE_DISTANCE)
+    {
+      printDistanceOnLCD(distance);
+    }
     if (distance < LOCK_DISTANCE) 
     {
       lock();
