@@ -2,10 +2,13 @@
 //
 // Step 1: Read distance from ultrasonic sensor using interrupts and print to serial
 // Step 2: Blink warning LED at a rate proportional to measured distance
+// Step 3: Lock app when obstacle is too close, blink both LEDs at 300ms when locked
 
 const byte ECHO_PIN = 3;
 const byte TRIGGER_PIN = 4;
 const byte WARNING_LED_PIN = 11;
+const byte ERROR_LED_PIN = 12;
+const double LOCK_DISTANCE = 10.0;
 
 // ultrasonic
 unsigned long lastTimeUltrasonicTrigger = millis();
@@ -21,6 +24,13 @@ double previousDistance = 400.0;
 unsigned long lastTimeWarningLEDBlinked = millis();
 unsigned long warningLEDDelay = 500;
 byte warningLEDState = LOW;
+
+// error LED
+unsigned long lastTimeErrorLEDBlinked = millis();
+unsigned long errorLEDDelay = 300;
+byte errorLEDState = LOW;
+
+bool isLocked = false;
 
 void triggerUltrasonicSensor()
 {
@@ -61,6 +71,12 @@ void echoPinInterrupt()
   }
 }
 
+void toggleErrorLED()
+{
+  errorLEDState = (errorLEDState == HIGH) ? LOW : HIGH;
+  digitalWrite(ERROR_LED_PIN, errorLEDState);
+}
+
 void toggleWarningLED()
 {
   warningLEDState = (warningLEDState == HIGH) ? LOW : HIGH;
@@ -74,12 +90,22 @@ void setWarningLEDBlinkRateFromDistance(double distance)
   Serial.println(warningLEDDelay);
 }
 
+void lock()
+{
+  if (!isLocked) {
+    isLocked = true;
+    warningLEDState = LOW;
+    errorLEDState = LOW;
+  }
+}
+
 void setup() 
 {
   Serial.begin(115200);
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(WARNING_LED_PIN, OUTPUT);
+  pinMode(ERROR_LED_PIN, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN), echoPinInterrupt, CHANGE);
 }
@@ -87,24 +113,37 @@ void setup()
 void loop() 
 {
   unsigned long timeNow = millis();
-
+  
+  if (isLocked) {
+    if (timeNow - lastTimeErrorLEDBlinked > errorLEDDelay)
+    {
+      lastTimeErrorLEDBlinked += errorLEDDelay;
+      toggleErrorLED();
+      toggleWarningLED();
+    }
+  }
+  else {
+    if (timeNow - lastTimeWarningLEDBlinked > warningLEDDelay)
+    {
+      lastTimeWarningLEDBlinked += warningLEDDelay;
+      toggleWarningLED();
+    }
+  }
+  
   if (timeNow - lastTimeUltrasonicTrigger > ultrasonicTriggerDelay) 
   {
     lastTimeUltrasonicTrigger += ultrasonicTriggerDelay;
     triggerUltrasonicSensor();
   }
   
-  if (timeNow - lastTimeWarningLEDBlinked > warningLEDDelay) 
-  {
-    lastTimeWarningLEDBlinked += warningLEDDelay;
-    toggleWarningLED();
-  }
-
   if (newDistanceAvailable) 
   {
     newDistanceAvailable = false;
     double distance = getUltrasonicDistance();
     setWarningLEDBlinkRateFromDistance(distance);
+    if (distance < LOCK_DISTANCE) {
+      lock();
+    }
     Serial.println(distance);
   }
 }
